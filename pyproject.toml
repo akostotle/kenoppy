@@ -1,0 +1,5 @@
+[project]
+name = "kenoppy"
+
+[tool.pyside6-project]
+files = ["combinations.py", "controllR.py", "cpumonitor.py", "findR.py", "helpR.py", "interuptR.py", "kenop.py", "main.py", "outputhandler.py", "readR.py", "truncatR.py", "writR.py"]
