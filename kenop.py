@@ -63,12 +63,12 @@ class Config(QtCore.QObject):
         return self._maxNumberOfYears
 
     @property
-    def MAX_NUMBER_OF_YEARS_IN_BYTES(self):
-        return int(self._maxNumberOfYears/8)
-
-    @property
     def NUMBER_OF_YEARS(self):
         return self._numberOfYears
+
+    @property
+    def MAX_NUMBER_OF_YEARS_IN_BYTES(self):
+        return int(self._maxNumberOfYears/8)
 
     @property
     def WEEKS(self):

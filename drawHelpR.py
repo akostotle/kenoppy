@@ -1,13 +1,11 @@
 from kenop import KenoP
 
-from PySide6.QtCore import QObject, Signal, Slot, QTimer, QByteArray, QDir, QIODevice, QFile, QDataStream
-
-import itertools
+from PySide6.QtCore import QObject, Signal, Slot, QByteArray, QDir, QIODevice, QFile, QDataStream
 
 
-class HelpR(KenoP):
-    next = Signal(list)
-    setNext = Signal()
+class DrawHelpR(KenoP):
+    next = Signal()
+    setNext = Signal(list)
     ready = Signal()
 
     def __init__(self):
@@ -16,23 +14,24 @@ class HelpR(KenoP):
         self.counter = 0
         self.length = self.nCr(self.config.N, self.config.R)
 
-        self.setNext.connect(self.onSetNext)
+        self.next.connect(self.onNext)
 
     def reset(self):
-        self.counter = 0
+        self.counter = -1
         self.file.close()
 
     @Slot()
-    def onSetNext(self):
+    def onNext(self):
         self.counter += 1
 
-        print("HelpR::onSetNext:", self.counter)
+        #print("HelpR::onSetNext:", self.counter, self.current())
 
         if self.counter < self.length:
-            self.next.emit(self.getCurrent())
+            self.setNext.emit(self.current())
         else:
             self.reset()
             self.ready.emit()
+
         '''
         if not self.data.atEnd():
             self.length += 1
@@ -45,12 +44,12 @@ class HelpR(KenoP):
             self.ready.emit(self.length)
         '''
 
-    def getCurrent(self):
+    def current(self):
         result = []
-        for i in range(self.config.R):
+        for _ in range(self.config.R):
             result.append(self.data.readUInt8())
 
-        print("HelpR::getCurrent:", result)
+        #print("HelpR::current:", result)
 
         return result
 
@@ -68,13 +67,15 @@ class HelpR(KenoP):
                 self.data = QDataStream(file)
                 if self.data.readUInt8() == self.config.R:
                     self.file = file
-                    self.next.emit(self.getCurrent())
-                    break
+                    #print("HelpR::read:", self.file, self.current())
+                    self.setNext.emit(self.current())
+                    return
                 else:
                     file.close()
             else:
                 file.close()
 
+    '''
     def write(self):
         if self.output.open(QIODevice.OpenModeFlag.WriteOnly):
             stream = QDataStream(self.output)
@@ -92,5 +93,4 @@ class HelpR(KenoP):
             self.output.close()
         else:
             print("Unable to open file to write: {f:s}".format(f=self.output.fileName()))
-
-
+    '''

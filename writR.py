@@ -2,15 +2,16 @@ from enum import Enum
 
 from kenop import KenoP
 #from truncater import TruncatR
-from PySide6.QtCore import QSysInfo, Signal, Slot, QIODevice, QDir, QFile, QTemporaryFile, QByteArray, QDataStream, QBitArray
+from PySide6.QtCore import QSysInfo, Signal, Slot, QIODevice, QDir, QFile, QTemporaryFile, QByteArray, QDataStream, QTextStream, QBitArray
 
 class WritR(KenoP):
     write = Signal(int, int, list)
     checkAndSet = Signal(int, QByteArray)
-    checkAndSetNext = Signal(int, QByteArray)
+    checkAndSetNext = Signal()#int, QByteArray)
     checkAndSetReady = Signal()#(QByteArray)
     aboutToClose = Signal()
     next = Signal()
+    helperNext = Signal()
 
     class State(Enum):
         UNKNOWN  = 0
@@ -36,12 +37,10 @@ class WritR(KenoP):
         self.write.connect(self.onWrite)
         self.checkAndSet.connect(self.onCheckAndSet)
 
-        self.state = WritR.State.UNKNOWN
-
         self.isFileOpened = False
         self.isTemporaryFileOpened = False
 
-        #self.findPosition = 0
+        #self.processsedWeeklyCombination = []
 
         print("WriteR:::WriteR:", self.years)
 
@@ -49,21 +48,7 @@ class WritR(KenoP):
         if self.file.exists():
             self.file.remove()
 
-        '''
-        self.tmpFile = QFile(self.temporaryFileName())
-        if self.tmpFile.exists():
-            self.tmpFile.remove()
-        '''
-
-        '''
-        if self.file.open(QIODevice.OpenModeFlag.ReadWrite):
-            self.data = QDataStream(self.file)
-            self.setHeader()
-        else:
-            print("WriteR::WriteR: Unable to open file:", self.file.fileName())
-        '''
         self.openFile()
-        #self.openTemporaryFile()
 
     def fileName(self):
         return "{root:s}/{directory:s}/R{r:d}.{ext:s}".format(root=self.config.ROOT_DIRECTORY, directory=self.config.RESULTS_DIRECTORY, r=self.config.R, ext=self.config.RESULTS_EXTENSION)
@@ -73,25 +58,12 @@ class WritR(KenoP):
 
         if self.isFileOpened:
             self.data = QDataStream(self.file)
+            #self.data.setByteOrder(QDataStream.ByteOrder.BigEndian)
             self.setHeader()
-
-            #self.openTemporaryFile()
         else:
             print("WriteR::openFile: Unable to open file:", self.fileName())
 
         return self.isFileOpened
-
-    def temporaryFileName(self):
-        return self.fileName() + self.config.TEMPORARY_EXTENSION
-
-    def openTemporaryFile(self):
-        if self.tmpFile.exists():
-            self.tmpFile.remove()
-
-        if self.tmpFile.open(QIODevice.OpenModeFlag.ReadWrite):
-            self.tmpData = QDataStream(self.tmpFile)
-        else:
-            print("WriteR::openTemporaryFile: Unable to open temporary file:", self.temporaryFileName())
 
     def setHeader(self):
         self.data.writeRawData(self.config.RESULTS_HEADER)
@@ -107,14 +79,12 @@ class WritR(KenoP):
         self.header = self.data.readRawData(self.size())
         self.headerSize = len(self.header)
 
-        print("WritR:::setHeader:", self.headerSize)
+        self.startOfHasCombination = self.headerSize
 
     def find(self, values):
         combination = QByteArray()
         for v in values:
             combination.append(v)
-            
-        print("WritR::find:", combination)
 
         self.onCheckAndSet(self.headerSize, combination)
 
@@ -125,52 +95,103 @@ class WritR(KenoP):
         return self.data.device().size()
 
     def close(self):
-        print("WritR::close")
         self.file.close()
 
-    def isCombinationExists(self, combination):
+    def getPositionOfCombination(self, combination):
+        # TODO:: use HasCombination???
+        '''
         position = self.headerSize
-        
-        self.file.seek(position)
 
-        while position < self.size():
-            if self.data.readRawData(self.config.R) == combination:
-                return self.HasCombination(True, position)
+        self.file.seek(position)
+        while self.file.pos() < self.file.size():
+            data = self.data.readRawData(self.config.R)
+            if data == combination:
+                return (True, position)
 
             position += self.file.pos() + self.config.NUMBER_OF_WEEKS*2
+            self.file.seek(position)
 
-        return self.HasCombination(False, position)
+        return (False, -1)
+        '''
+        #print("WritR::hasCombination:", combination)
+        self.file.seek(self.headerSize)
+        #position = self.headerSize
+        while self.file.pos() < self.file.size():
+            data = self.data.readRawData(self.config.R)
+            #print(self.file.pos(), data, combination)
+            #position += self.config.R
+            if data == combination:
+                #return (True, self.file.pos() + self.config.NUMBER_OF_WEEKS*2, combination)
+                return self.file.pos() - self.config.R
+
+            #position += self.config.NUMBER_OF_WEEKS*2
+            self.file.seek(self.file.pos() + self.config.NUMBER_OF_WEEKS*2)
+
+        #return (False, -1)
+        return 0
 
     @Slot(int, int, list)
     def onWrite(self, year, week, combination):
         self.year = year
         self.week = week
 
-        print("WritR::onWrite:", combination)
+        #print("WritR::onWrite:", combination)
 
         self.find(combination)
 
     @Slot(int, list, list)
     def onCheckAndSet(self, position, combination):
-        print("WritR::checkAndSet:", position, self.size(), self.headerSize, self.state, combination)
-        self.state = WritR.State.UNKNOWN
+        #print("WritR::onCheckAndSet:", position, self.size(), self.headerSize, self.state, combination)
+        #self.state = WritR.State.UNKNOWN
+        #print("WritR::onCheckAndSet:", combination)
 
-        #self.seek(position)
-        #self.tmpFile.seek(0)
-        #print("WritR::onCheckAndSet:", position, self.tmpFile.size())
+        #hasCombination = self.hasCombination(combination)
+        #print("WritR::onCheckAndSet:", hasCombination)
+        position = self.getPositionOfCombination(combination)
 
-        # TODO: erőforráshatékonyság!!!
-        #self.tmpFile.writeRawData(self.data.readRawData(position))
+        #if hasCombination[0]:
+            #self.file.seek(hasCombination[1])
+        #if hasCombination > 0:
+        if position:
+            position += self.config.R
+            self.file.seek(position)
+            print(combination, list(map(lambda _ : int.from_bytes(_, byteorder="big"), list(combination))), position)
 
-        hasCombination = self.isCombinationExists(combination)
+            #values = self.data.readRawData(self.config.R)
+            #print("WritR::onCheckAndSet:", values, self.config.MAX_NUMBER_OF_YEARS_IN_BYTES)
+            #self.file.seek(self.file.pos())# + self.config.R)
+            #print("WritR::onCheckAndSet:", self.file.pos(), self.config.MAX_NUMBER_OF_YEARS_IN_BYTES)
 
-        print(position, self.size())
-        self.file.seek(hasCombination.position)
-        if hasCombination.exists:
-            #self.file.seek(hasCombination.position)
+            #print(self.config.NUMBER_OF_WEEKS*self.config.MAX_NUMBER_OF_YEARS_IN_BYTES)
+            #print(self.bytesToBits(self.data.readRawData(self.config.NUMBER_OF_WEEKS*self.config.MAX_NUMBER_OF_YEARS_IN_BYTES)))
 
-            values = self.data.readRawData(self.config.R)
-            print(values)
+            #print(self.bytesToBits(self.data.readRawData(self.config.MAX_NUMBER_OF_YEARS)))
+
+            #print("WritR::onCheckAndSet:", self.config.NUMBER_OF_WEEKS, self.config.MAX_NUMBER_OF_YEARS, self.config.MAX_NUMBER_OF_YEARS_IN_BYTES, self.file.pos(), self.config.NUMBER_OF_WEEKS - (self.config.END_OF_WEEKS - self.week), (self.config.NUMBER_OF_WEEKS - (self.config.END_OF_WEEKS - self.week + 1))*self.config.MAX_NUMBER_OF_YEARS_IN_BYTES)
+            #values = self.data.readRawData(self.config.NUMBER_OF_WEEKS*self.config.MAX_NUMBER_OF_YEARS_IN_BYTES)
+            #position = self.file.pos()
+
+            position += (self.week - self.config.START_OF_WEEKS)*self.config.MAX_NUMBER_OF_YEARS_IN_BYTES
+
+
+            #print("WritR::onCheckAndSet:", self.week, self.week - self.config.START_OF_WEEKS, 2 - self.config.START_OF_WEEKS, 50 - self.config.START_OF_WEEKS)
+            self.file.seek(position)
+            bits = self.bytesToBits(self.data.readRawData(self.config.MAX_NUMBER_OF_YEARS_IN_BYTES))
+            for w in self.config.WEEKS:
+                if w == self.week:
+                    bits.setBit(self.config.MAX_NUMBER_OF_YEARS - self.years.index(self.year) - 1)
+
+            print(bits, self.years, position, self.file.pos())
+            self.file.seek(position)
+            self.data.writeUInt16(self.bitsToBytes(bits))
+
+            '''
+            i = 0
+            print(values, len(values), i)
+            while i < len(values):
+                i = i + self.config.MAX_NUMBER_OF_YEARS_IN_BYTES
+                print(i, self.week, (self.config.END_OF_WEEKS - self.config.START_OF_WEEKS))
+            '''
             '''
             if values == combination:
                 #and self.openTemporaryFile():
@@ -202,15 +223,17 @@ class WritR(KenoP):
                 self.checkAndSetNext.emit(position + self.config.R + self.config.MAX_NUMBER_OF_YEARS_IN_BYTES*self.config.NUMBER_OF_WEEKS, combination)
             '''
         else:
-            self.state = WritR.State.NEW
+            #self.state = WritR.State.NEW
 
             #length = self.file.size()# - self.headerSize
 
-            print("WritR::onCheckAndSet:", self.state, combination)
+            #print("WritR::onCheckAndSet:", self.state, combination)
             #self.file.seek(0)
             #self.tmpData.writeRawData(self.tmpData.readRawData(length))
             #self.tmpFile.seek(self.file.size())
 
+            #print(self.data.device().size())
+            self.file.seek(self.data.device().size())
             self.data.writeRawData(combination)
             #for c in combination:
                 #print("WritR::onCheckAndSet::combination:", c)
@@ -234,45 +257,10 @@ class WritR(KenoP):
                 # TODO: hossz bájtokban
                 #length += int(16/8)
 
+        self.checkAndSetNext.emit()
 
-            #self.file.close()
-            self.checkAndSetReady.emit()
-
-            #self.checkAndSetReady.emit(self.file.pos(), combination)
-            #self.file.close()
-            #print(length)
-
-            #self.tmpFile.commitTransaction()
-
-            #self.rewriteFileAndSetNext(length, combination)
-
-    def rewriteRawData(self, position, data):
-        pass
-
-    def rewriteFileAndSetNext(self, length, combination):
-        print("WritR::rewriteFileAndSetNext:", length)
-        '''
-        self.file.close()
-        self.file.remove()
-        self.tmpFile.close()
-        self.tmpFile.rename(self.fileName())
-        '''
-        #self.file.resize(self.headerSize)
-        self.tmpFile.seek(0)
-        self.tmpData.writeRawData(self.header)
-
-        #self.file.close()
-        #self.tmpFile.close()
-
-        '''
-        self.tmpFile.rename(self.fileName())
-        self.tmpFile.remove()
-        '''
-
-        self.file.close()
-        self.tmpFile.close()
-
-        #self.checkAndSetReady.emit(combination)
+    def setWeek(self, bits):
+        bits.setBit(self.config.MAX_NUMBER_OF_YEARS - self.years.index(self.year) - 1)
 
     def readWeek(self):
         result = QBitArray(self.config.MAX_NUMBER_OF_YEARS)
@@ -291,17 +279,30 @@ class WritR(KenoP):
 
     def bytesToBits(self, values):
         result = QBitArray(len(values)*8)
+        
+        '''
+        b = 8
+        while b > 0:
+            result.setBit((i*8) + b, values[i] & (7 << b))
+            b -= 1
+
+        '''
         for i in range(len(values)):
             for b in range(8):
                 result.setBit((i*8) + b, values[i] & (1 << (7 - b)))
+            #for b in range(7, 0, -1):
+                #result.setBit((i*8) + b, b & (1 << (7 - b)))
+                #result.setBit((i*8) + b, values[i][b] & (1 << b))
+
+        #print("WritR::bytesToBits:", len(result), result)
 
         return result
 
     def bitsToBytes(self, bits):
+        result = bits.toUInt32(QSysInfo.Endian.BigEndian)
+
         #TODO: do generic
+        result >> 24
+        result >> 16
 
-        values = bits.toUInt32(QSysInfo.Endian.BigEndian)
-        values >> 24
-        values >> 16
-
-        return values
+        return result

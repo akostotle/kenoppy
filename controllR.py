@@ -7,7 +7,7 @@ from PySide6.QtCore import Signal, Slot, QDir, QTimer, QByteArray, QThread
 #from cpumonitor import CPUMonitor
 #outputhandler import OutputHandler
 
-from helpR import HelpR
+from drawHelpR import DrawHelpR
 from readR import ReadR
 from writR import WritR
 
@@ -22,6 +22,7 @@ class ControllR(KenoP):
     setData = Signal(list)
     nextCombination = Signal(list)
     combinationReady = Signal()
+    nextHelper = Signal()
 
     readNextHelpR = Signal()
     doNextHelpR = Signal()
@@ -40,9 +41,9 @@ class ControllR(KenoP):
 
         self.setInputs()
 
-        self.helper = HelpR()
-        self.helper.next.connect(self.onHelperNext)
-        self.helper.ready.connect(self.onHelperReady)
+        self.drawHelper = DrawHelpR()
+        self.drawHelper.setNext.connect(self.onDrawHelperSetNext)
+        self.drawHelper.ready.connect(self.onDrawHelperReady)
 
         self.reader = ReadR(self.inputs)
         self.reader.moveToThread(self.readerThread)
@@ -77,7 +78,7 @@ class ControllR(KenoP):
         #self.writer.openFile()
         #self.writer.openTemporaryFile()
 
-        self.helper.read()
+        self.drawHelper.read()
 
     @Slot()
     def onReaderReady(self):
@@ -85,25 +86,27 @@ class ControllR(KenoP):
         print("ControllR::onReaderReady: ready")
 
     @Slot(list)
-    def onHelperNext(self, values):
+    def onDrawHelperSetNext(self, values):
         combination = []
         for i in values:
             combination.append(self.reader.data[i])
 
-        print("ControllR::onHelperNext:", combination)
+        #print("ControllR::onHelpersetNext:", combination)
         self.writer.write.emit(self.reader.year, self.reader.week, combination)
 
     @Slot()
-    def onHelperReady(self):
+    def onDrawHelperReady(self):
         #print("ControllR::onHelperReady")
         self.reader.readNextLine.emit()
 
-    @Slot(int, QByteArray)
-    def onWriterCheckAndSetNext(self, position, combination):
-        self.writer.checkAndSet.emit(position, combination)
+    @Slot()#(int, QByteArray)
+    def onWriterCheckAndSetNext(self):#, position, combination)
+        #print("ConrolR::onWriterCheckAndSetNext", position, combination)
+        #self.writer.checkAndSet.emit(position, combination)
+        self.drawHelper.next.emit()
 
     @Slot()#(QByteArray)
-    def onWriterCheckAndSetReady(self):#, c):
+    def onWriterCheckAndSetReady(self):
         '''
         #print(self.writer.state)
 
@@ -113,8 +116,8 @@ class ControllR(KenoP):
 
         print("ControllR::onWriterCheckAndSetReady:", self.writer.state, c)
         '''
+        pass
 
-        self.helper.setNext.emit()
 
     '''
     @Slot()
