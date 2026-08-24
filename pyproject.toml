@@ -2,4 +2,4 @@
 name = "kenoppy"
 
 [tool.pyside6-project]
-files = ["combinations.py", "controllR.py", "cpumonitor.py", "drawHelpR.py", "interuptR.py", "kenop.py", "main.py", "outputhandler.py", "readR.py", "writR.py"]
+files = ["combinations.py", "controllR.py", "cpumonitor.py", "helpR.py", "interuptR.py", "kenop.py", "main.py", "outputhandler.py", "readR.py", "writR.py"]

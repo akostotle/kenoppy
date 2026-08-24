@@ -23,7 +23,7 @@ class Config(QtCore.QObject):
         self._n = 20
 
         self._maxNumberOfYears = 16
-        self._numberOfYears = 1
+        self._numberOfYears = 2
 
         self._startOfWeeks = 2
         self._endOfWeeks = 50
@@ -40,6 +40,7 @@ class Config(QtCore.QObject):
         self._resultsHeader = "KPB"
         self._resultsHeaderYearsStart = "Y"
         self._resultsHeaderYearsEnd = "S"
+        self._resultsHeaderWeeks = "W"
         self._resultsExtension = self._resultsHeader.lower() 
 
     @property
@@ -83,8 +84,16 @@ class Config(QtCore.QObject):
         return self._startOfWeeks
 
     @property
+    def START_DAY_OF_WEEK(self):
+        return 1
+
+    @property
     def END_OF_WEEKS(self):
         return self._endOfWeeks
+
+    @property
+    def END_DAY_OF_WEEK(self):
+        return 7
 
     @property
     def INPUTS_DIRECTORY(self):
@@ -123,6 +132,10 @@ class Config(QtCore.QObject):
         return self._resultsHeaderYearsEnd
 
     @property
+    def RESULTS_HEADER_WEEKS(self):
+        return self._resultsHeaderWeeks
+
+    @property
     def RESULTS_EXTENSION(self):
         return self._resultsExtension
 
@@ -140,7 +153,7 @@ class KenoP(QtCore.QObject):
             result = (result*n)/i
             n -= 1
 
-        return result
+        return int(result)
 
     def __init__(self, parent=None):
         super().__init__(parent)

@@ -7,7 +7,7 @@ from PySide6.QtCore import Signal, Slot, QDir, QTimer, QByteArray, QThread
 #from cpumonitor import CPUMonitor
 #outputhandler import OutputHandler
 
-from drawHelpR import DrawHelpR
+from helpR import HelpR
 from readR import ReadR
 from writR import WritR
 
@@ -27,6 +27,7 @@ class ControllR(KenoP):
     readNextHelpR = Signal()
     doNextHelpR = Signal()
 
+    helperThread = QThread()
     readerThread = QThread()
     writerThread = QThread()
 
@@ -36,21 +37,26 @@ class ControllR(KenoP):
         #self.monitor = CPUMonitor()
         #self.output = OutputHandler(self)
 
-        self.readerThread.started.connect(self.setWriter)
-        self.writerThread.started.connect(lambda: self.reader.read())
-
         self.setInputs()
 
-        self.drawHelper = DrawHelpR()
-        self.drawHelper.setNext.connect(self.onDrawHelperSetNext)
-        self.drawHelper.ready.connect(self.onDrawHelperReady)
+        self.helper = HelpR()
+        self.helper.currentChanged.connect(self.onHelperCurrentChanged)
+        self.helper.ready.connect(self.onHelperReady)
+        self.helperThread.started.connect(lambda: self.readerThread.start())
+        self.helper.moveToThread(self.helperThread)
+
 
         self.reader = ReadR(self.inputs)
-        self.reader.moveToThread(self.readerThread)
         self.reader.next.connect(self.onReaderNext)
         self.reader.dataChanged.connect(self.onReaderDataChanged)
         self.reader.ready.connect(self.onReaderReady)
-        self.readerThread.start()
+        self.reader.moveToThread(self.readerThread)
+        #self.readerThread.start()
+
+        self.readerThread.started.connect(self.setWriter)
+        self.writerThread.started.connect(lambda: self.reader.read())
+
+        self.helperThread.start()
 
     def setInputs(self):
         inputs = list(filter(lambda _: not _.startswith('.'), QDir("{root:s}/{inputs:s}".format(root=self.config.ROOT_DIRECTORY, inputs=self.config.INPUTS_DIRECTORY)).entryList('*.' + self.config.INPUTS_EXTENSION)))
@@ -65,45 +71,71 @@ class ControllR(KenoP):
         self.writer.moveToThread(self.writerThread)
         self.writer.checkAndSetNext.connect(self.onWriterCheckAndSetNext)
         self.writer.checkAndSetReady.connect(self.onWriterCheckAndSetReady)
+        #self.writer.saveCurrentWeek.connect(self.onSaveCurrentWeek)
 
         self.writerThread.start()
 
-    @Slot()
-    def onReaderNext(self):
-        self.reader.readNextLine.emit()
-
-    @Slot()
-    def onReaderDataChanged(self):
-        print("ControllR::onReaderDataChanged:", self.reader.year, self.reader.week, self.reader.data)
-        #self.writer.openFile()
-        #self.writer.openTemporaryFile()
-
-        self.drawHelper.read()
-
-    @Slot()
-    def onReaderReady(self):
-        #self.writer.close()
-        print("ControllR::onReaderReady: ready")
-
+    '''
     @Slot(list)
-    def onDrawHelperSetNext(self, values):
+    def onHelperNext(self):
+    #@Slot()
+    #def onHelperNext(self):
+        values = self.helper.current()
+
         combination = []
         for i in values:
             combination.append(self.reader.data[i])
 
-        #print("ControllR::onHelpersetNext:", combination)
-        self.writer.write.emit(self.reader.year, self.reader.week, combination)
+        print("ControllR::onHelperNext:", self.reader.data, values, combination)
+    '''
+
+    @Slot(list)
+    def onHelperCurrentChanged(self, values):
+        print("ControllR::onHelperCurrentChanged:", values)
+        self.helper.next.emit()
+        #self.reader.readNextLine.emit()
 
     @Slot()
-    def onDrawHelperReady(self):
-        #print("ControllR::onHelperReady")
-        self.reader.readNextLine.emit()
+    def onHelperReady(self):
+        print("ControllR::onHelperReady")
+        #self.reader.readNextLine.emit()
+
+    @Slot()
+    def onReaderNext(self):
+        #print("ControllR::onReaderNext:")
+        #self.reader.readNext.emit()
+        self.reader.setNext.emit()
+
+    @Slot()
+    def onReaderDataChanged(self):
+        print("ControllR::onReaderDataChanged:", self.reader.year, self.reader.week, self.reader.day, self.reader.data)
+        #self.writer.openFile()
+        #self.writer.openTemporaryFile()
+
+        #self.helper.read()
+        #self.reader.next.emit()
+        self.helper.input = self.reader.data
+        print(self.helper.input)
+        #print(self.helper.data)
+
+        #self.reader.setNext.emit()
+        self.helper.next.emit()
+
+    @Slot()
+    def onReaderReady(self):
+        #self.writer.close()
+        print("ControllR::onReaderReady:", self.reader.data)
+
+        #self.helper.next.emit()
+
+        #if self.reader.inputsIterator < self.config.NUMBER_OF_YEARS:
+        #self.reader.readNextLine.emit()
 
     @Slot()#(int, QByteArray)
     def onWriterCheckAndSetNext(self):#, position, combination)
         #print("ConrolR::onWriterCheckAndSetNext", position, combination)
         #self.writer.checkAndSet.emit(position, combination)
-        self.drawHelper.next.emit()
+        self.helper.next.emit()
 
     @Slot()#(QByteArray)
     def onWriterCheckAndSetReady(self):
@@ -118,6 +150,14 @@ class ControllR(KenoP):
         '''
         pass
 
+    @Slot()
+    def onSaveCurrentWeek(self):
+        self.writer.currentWeek = self.writer.week
+        print("ControlR::onSaveCurrentWeek:", self.writer.currentWeek)
+
+        self.writer.close()
+        if self.writer.openFile(False):
+            self.reader.next.emit()
 
     '''
     @Slot()

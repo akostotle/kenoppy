@@ -3,33 +3,44 @@ from kenop import KenoP
 from PySide6.QtCore import QObject, Signal, Slot, QByteArray, QDir, QIODevice, QFile, QDataStream
 
 
-class DrawHelpR(KenoP):
+class HelpR(KenoP):
     next = Signal()
-    setNext = Signal(list)
+    currentChanged = Signal(list)
     ready = Signal()
 
     def __init__(self):
         super().__init__()
 
-        self.counter = 0
+        self.data = []
+        self.input = []
+
         self.length = self.nCr(self.config.N, self.config.R)
+
+        self.reset()
+        self.read()
 
         self.next.connect(self.onNext)
 
     def reset(self):
-        self.counter = -1
-        self.file.close()
+        self.iterator = -1
 
     @Slot()
     def onNext(self):
-        self.counter += 1
+        self.iterator += 1
 
-        #print("HelpR::onSetNext:", self.counter, self.current())
+        #print("HelpR::onSetNext:", self.iterator, self.length)
 
-        if self.counter < self.length:
-            self.setNext.emit(self.current())
+        if self.iterator < self.length:
+            #self.next.emit()
+            current = self.data[self.iterator]
+            result = []
+            for i in current:
+                result.append(self.input[i])
+
+            self.currentChanged.emit(result)
         else:
             self.reset()
+
             self.ready.emit()
 
         '''
@@ -45,13 +56,15 @@ class DrawHelpR(KenoP):
         '''
 
     def current(self):
+        '''
         result = []
         for _ in range(self.config.R):
             result.append(self.data.readUInt8())
 
-        #print("HelpR::current:", result)
+        print("HelpR::current:", result)
 
         return result
+        '''
 
     def read(self):
         def isCurrent(directory, file):
@@ -64,11 +77,21 @@ class DrawHelpR(KenoP):
         for f in [ _ for _ in QDir(directory).entryList() if not _.startswith('.') ]:
             file = QFile("{directory:s}/{filename:s}".format(directory=directory, filename=f))
             if isCurrent(directory, file) and file.open(QIODevice.OpenModeFlag.ReadOnly) and hasHeader():
-                self.data = QDataStream(file)
-                if self.data.readUInt8() == self.config.R:
-                    self.file = file
+                #self.data = QDataStream(file)
+                data = QDataStream(file)
+                if data.readUInt8() == self.config.R:
+                    #self.file = file
+                    #print("HelpR::read:", self.file.pos())
                     #print("HelpR::read:", self.file, self.current())
-                    self.setNext.emit(self.current())
+                    #self.next.emit(self.current())
+                    #self.next.emit()
+                    for _ in range(self.length):
+                        combination = []
+                        for _ in range(self.config.R):
+                            combination.append(data.readUInt8())
+
+                        self.data.append(combination)
+
                     return
                 else:
                     file.close()
