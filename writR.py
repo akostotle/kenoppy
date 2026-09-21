@@ -2,7 +2,7 @@ from enum import Enum
 
 from kenop import KenoP
 #from truncater import TruncatR
-from PySide6.QtCore import QSysInfo, Signal, Slot, QIODevice, QDir, QFile, QTemporaryFile, QByteArray, QDataStream, QTextStream, QBitArray
+from PySide6.QtCore import QObject, QSysInfo, Signal, Slot, QIODevice, QDir, QByteArray, QDataStream, QBitArray, QThread
 
 class WritR(KenoP):
     write = Signal(int, int, int, list)
@@ -13,6 +13,11 @@ class WritR(KenoP):
     next = Signal()
     helperNext = Signal()
     saveCurrentWeek = Signal()
+
+    #combinationsClearNext = Signal(int)
+    #combinationsClearOccurrences = Signal(int)
+
+    #WCT = QThread() # WeeklyCombinationThread
 
     class WeeklyCombination:
         def __init__(self, values, count = 0):
@@ -30,32 +35,160 @@ class WritR(KenoP):
         def __str__(self):
             return "(): "
 
-    class WeeklyCombinations:
-        def __init__(self):
+    class Combinations(QObject):
+        setNextClear = Signal()
+        clearNext = Signal(int)
+        clearNextOccurrences = Signal(list)
+        clearReady = Signal()
+
+        WCT = QThread() # WeeklyCombinationThread
+
+        #def __init__(self, config):
+        def __init__(self, config, cpu, parent=None):
+            super().__init__(parent)
+
+            self.config = config
+            self.cpu = cpu
+
+            self.week = -1
             self.combinations = []
 
-        def clear(self):
-            self.combinations.clear()
+            self.I, J = 0, 0
 
-        def append(self, value):
-            combination = self.contains(value)
-            if combination is not None:
-                combination.count += 1
-            else:
-                value.count = 1
-                self.combinations.append(value)
+            self.setNextClear.connect(self.onSetNextClear)
+            self.clearNext.connect(self.onClearNext)
+            self.moveToThread(self.WCT)
+            self.WCT.start()
 
-            print("WriR::Combinations::append:", self.combinations)
+            #self.clearNext.connect(lambda _: )
 
-        def contains(self, value):
+            #self.clearerator = 0
+            #self.clearJiterator = self.clearIterator + 1
+
+        def append(self, values):
+            if self.week >= self.config.START_OF_WEEKS and self.week <= self.config.END_OF_WEEKS: #and not self.contains(values):
+                self.combinations.append(values)
+
+        def length(self):
+            return len(self.combinations)
+
+        def size(self):
+            return self.length()
+
+        def contains(self, values):
             for combination in self.combinations:
-                if combination == value:
-                    return combination
+                if combination == values:
+                    return True
 
-            return None
+            return False
 
-    def __init__(self, inputs):
+        def clear(self, value=0):
+            start = value*self.config.CHUNK_SIZE
+            stop = start + self.config.CHUNK_SIZE
+            isReady = False
+
+            #self.cpu.get()
+            print("start next clear:", start, stop)
+
+            i = start
+            while i <= stop and not isReady:
+                combination = self.combinations[i]
+
+                j = i + 1
+                while j < self.length():
+                    if combination == self.combinations[j]:
+                        self.combinations.pop(j)
+                    else:
+                        j += 1
+
+                i += 1
+
+                isReady = (i >= self.length())
+
+            if not isReady:
+                self.clearNext.emit(value+1)
+            else:
+                print("WritR::clear: ready", self.length())
+
+            #if not isReady:
+            #    self.clearNext.emit(value+1)
+            '''
+            while not isReady:
+                j = i + 1
+
+                isReady = ((i + 1) >= len(self.combinations))
+
+            print("WritR::clear:", value, i, j)
+
+            if isReady:
+                print("WritR::clear:", "ready", self.combinations)
+            else:
+                self.clearNext.emit(value+1)
+            '''
+            '''
+            while not isReady:
+                j = i + 1
+
+                while j < (i + self.config.CHUNK_SIZE - 1) and j < len(self.combinations):
+                    if self.combinations[i] == self.combinations[j]:
+                        self.combinations.pop(j)
+
+                    j += 1
+
+                i += 1
+
+                isReady = i > (pos + self.config.CHUNK_SIZE) or i > len(self.combinations)
+
+            print("OK", iterator, i, len(self.combinations), isReady)
+            '''
+            '''
+            if isReady:
+                print("ready")
+            else:
+                self.clearNext.emit(iterator+1)
+            '''
+            '''
+            #self.clearIterator = 0
+            #if not self.parent().WCT == None:
+                #self.WCT = self.parent().WCT
+
+            #self.clearerator = 0
+            #self.clearNext.emit()
+            '''
+
+        @Slot()
+        def onSetNextClear(self):
+            self.I += 1
+            self.clearNext.emit()
+
+        @Slot()
+        def onClearNext(self, iterator):
+            self.clear(iterator)
+            #self.clearerator = value
+            #print(self.clearerator)
+
+            '''
+            if self.clearerator < (len(self.combinations) - 1):
+                self.jelerator = self.clearerator += 1
+            else:
+                self.clearerator += 1
+                self.clearNext.emit()
+            '''
+            '''
+            print("WritR::Combinations::onClearNext:", self.parent())
+            if self.I < (len(self.combinations) - 1):
+                print(self.I)
+                #self.I += 1
+                #self.clearNext.emit()
+                self.setNextClear.emit()
+            else:
+                self.clearReady.emit()
+            '''
+
+    def __init__(self, cpu, inputs):
         super().__init__()
+
+        self.cpu = cpu
 
         self.root = QDir("{root:s}/{directory:s}".format(root=self.config.ROOT_DIRECTORY, directory=self.config.RESULTS_DIRECTORY))
         print("WritR::init:", self.root.absolutePath())
@@ -67,7 +200,15 @@ class WritR(KenoP):
 
         self.currentWeek = -1
 
-        self.weeklycombinations = self.WeeklyCombinations()
+        self.combinations = self.Combinations(self.config, cpu)
+
+        print(self.config.CHUNK_SIZE)
+        '''
+        self.combinations.setNextClear.connect(self.combinations.onSetNextClear)
+        self.combinations.clearNext.connect(self.combinations.onClearNext)
+        self.combinations.moveToThread(self.WCT)
+        self.WCT.start()
+        '''
 
         self.write.connect(self.onWrite)
         self.checkAndSet.connect(self.onCheckAndSet)
@@ -153,6 +294,10 @@ class WritR(KenoP):
 
     def contains(self, combiation):
         pass
+
+    @Slot(int)
+    def onCombinationsClearNext(self, iterator):
+        print("WritR::onCombinationsClearNext:", iterator)
 
     @Slot(int, int, int, list)
     def onWrite(self, year, week, day, combination):

@@ -49,6 +49,8 @@ class CPUMonitor(QtCore.QObject):
                 parseValue(self.CPU_SYSTEM, value)
                 parseValue(self.CPU_IDLE, value)
 
+        print(result)
+
         return result
 
 

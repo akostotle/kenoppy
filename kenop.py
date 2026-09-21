@@ -56,6 +56,10 @@ class Config(QtCore.QObject):
         return self._r
 
     @property
+    def CHUNK_SIZE(self):
+        return 2**(10 - self._r + 1)#2**(3 + self._r + 1) #2**8 # TODO: calculate relative to R // 4 + R
+
+    @property
     def ROOT_DIRECTORY(self):
         return self._rootDirectory
 

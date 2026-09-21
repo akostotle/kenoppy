@@ -28,10 +28,7 @@ class HelpR(KenoP):
     def onNext(self):
         self.iterator += 1
 
-        #print("HelpR::onSetNext:", self.iterator, self.length)
-
         if self.iterator < self.length:
-            #self.next.emit()
             current = self.data[self.iterator]
             result = []
             for i in current:
@@ -40,31 +37,7 @@ class HelpR(KenoP):
             self.currentChanged.emit(result)
         else:
             self.reset()
-
             self.ready.emit()
-
-        '''
-        if not self.data.atEnd():
-            self.length += 1
-            print("ReadR::onNext:")
-
-            self.readNext.emit(self.getValues())
-        else:
-            self.length += 1
-            print("HelpR::doNext:", self.length)
-            self.ready.emit(self.length)
-        '''
-
-    def current(self):
-        '''
-        result = []
-        for _ in range(self.config.R):
-            result.append(self.data.readUInt8())
-
-        print("HelpR::current:", result)
-
-        return result
-        '''
 
     def read(self):
         def isCurrent(directory, file):

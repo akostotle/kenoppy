@@ -6,7 +6,7 @@ class ReadR(KenoP):
     next = Signal()
     setNext= Signal()
     #readNext= Signal()
-    #readLine = Signal()
+    setNextLine = Signal()
     dataChanged = Signal()
     ready = Signal()
 
@@ -21,11 +21,8 @@ class ReadR(KenoP):
         self.day = -1
         self.data = []
 
-        #self.readLine.connect(lambda _: self.readLine())
-
+        self.setNextLine.connect(lambda: self.readLine())
         self.setNext.connect(self.onSetNext)
-
-        #self.read()
 
     def read(self):
         self.input = QFile(self.inputs[self.iterator])
@@ -55,8 +52,6 @@ class ReadR(KenoP):
             self.week = int(p[1])
             self.day = int(p[2])
             self.data = []
-
-            #print(self.year, self.week, self.day)
 
             #if self.week >= self.config.START_OF_WEEKS and self.week <= self.config.END_OF_WEEKS:
             #print(self.week, self.config.END_OF_WEEKS, self.week <= self.config.END_OF_WEEKS and self.week >= (self.config.END_OF_WEEKS-2))
