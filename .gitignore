@@ -1,2 +1,3 @@
-pw.txt
 R/
+__pycache__/
+venv/
