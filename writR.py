@@ -13,6 +13,7 @@ class WritR(KenoP):
     next = Signal()
     helperNext = Signal()
     saveCurrentWeek = Signal()
+    combinationsCleared = Signal()
 
     #combinationsClearNext = Signal(int)
     #combinationsClearOccurrences = Signal(int)
@@ -88,7 +89,7 @@ class WritR(KenoP):
             isReady = False
 
             #self.cpu.get()
-            print("start next clear:", start, stop)
+            print("WritR::clear: start next clear:", start, stop)
 
             i = start
             while i <= stop and not isReady:
@@ -109,6 +110,8 @@ class WritR(KenoP):
                 self.clearNext.emit(value+1)
             else:
                 print("WritR::clear: ready", self.length())
+                self.combinations.clear()
+                self.clearReady.emit()
 
             #if not isReady:
             #    self.clearNext.emit(value+1)
@@ -201,6 +204,7 @@ class WritR(KenoP):
         self.currentWeek = -1
 
         self.combinations = self.Combinations(self.config, cpu)
+        self.combinations.clearReady.connect(lambda: self.combinationsCleared.emit())
 
         print(self.config.CHUNK_SIZE)
         '''

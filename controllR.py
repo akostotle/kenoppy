@@ -33,8 +33,24 @@ class ControllR(KenoP):
 
     WCT = QThread() # WeeklyCombinationThread
 
+    @staticmethod
+    def nCr(n, r):
+        if r < 0 or n < r :
+            return -1
+
+        result = 1
+        i = 0
+        while i < r :
+            i += 1
+            result = (result*n)/i
+            n -= 1
+
+        return result
+
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        print("ConntrollR::__init__:", self.nCr(self.config.N, self.config.R)*(self.config.R + self.config.NUMBER_OF_YEARS)*(self.config.NUMBER_OF_YEARS*self.config.NUMBER_OF_WEEKS))
 
         self.monitor = CPUMonitor()
         #self.output = OutputHandler(self)
@@ -52,7 +68,7 @@ class ControllR(KenoP):
         self.reader.dataChanged.connect(self.onReaderDataChanged)
         self.reader.ready.connect(self.onReaderReady)
         self.reader.moveToThread(self.RRT)
-        self.RRT.start()
+        #self.RRT.start()
 
         self.RRT.started.connect(self.setWriter)
         self.WRT.started.connect(lambda: self.reader.read())
@@ -71,6 +87,7 @@ class ControllR(KenoP):
         self.writer = WritR(self.monitor, self.inputs)
         self.writer.checkAndSetNext.connect(self.onWriterCheckAndSetNext)
         self.writer.checkAndSetReady.connect(self.onWriterCheckAndSetReady)
+        self.writer.combinationsCleared.connect(lambda: self.reader.setNextLine.emit())
         self.writer.moveToThread(self.WRT)
         self.WRT.start()
 
@@ -97,9 +114,12 @@ class ControllR(KenoP):
 
     @Slot()
     def onHelperReady(self):
-        #print("ControllR::onHelperReady:", self.writer.combinations.length())
+        print("ControllR::onHelperReady:", self.writer.combinations.length())
 
-        self.reader.setNextLine.emit()
+        if self.reader.day == self.config.START_DAY_OF_WEEK:
+            self.writer.combinations.clear()
+        else:
+            self.reader.setNextLine.emit()
 
     @Slot()
     def onReaderNext(self):
@@ -136,9 +156,9 @@ class ControllR(KenoP):
             self.WCT.start()
         '''
 
-        self.writer.combinations.clear()
+        #self.writer.combinations.clear()
 
-        print("ControllR::onReaderReady:", self.writer.combinations.size())
+        #print("ControllR::onReaderReady:", self.writer.combinations.size())
 
         #self.helper.next.emit()
 

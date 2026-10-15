@@ -18,7 +18,7 @@ class Config(QtCore.QObject):
         if self._rootDirectory.endswith('/'):
             self._rootDirectory = self._rootDirectory[:-1]
 
-        print(self._r, self._rootDirectory)
+        #print(self._r, self._rootDirectory)
 
         self._n = 20
 

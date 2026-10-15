@@ -34,6 +34,8 @@ class HelpR(KenoP):
             for i in current:
                 result.append(self.input[i])
 
+            #print("HelpR::onNext:", result)
+
             self.currentChanged.emit(result)
         else:
             self.reset()

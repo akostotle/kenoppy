@@ -55,15 +55,18 @@ class ReadR(KenoP):
 
             #if self.week >= self.config.START_OF_WEEKS and self.week <= self.config.END_OF_WEEKS:
             #print(self.week, self.config.END_OF_WEEKS, self.week <= self.config.END_OF_WEEKS and self.week >= (self.config.END_OF_WEEKS-2))
-            if self.week == self.config.END_OF_WEEKS:
+            #if self.week == self.config.END_OF_WEEKS:
+            #print(self.config.END_OF_WEEKS, (self.config.END_OF_WEEKS - 1))
+            if self.week <= self.config.END_OF_WEEKS and self.week >= (self.config.END_OF_WEEKS - 1):
                 for i in range(4, len(p)):
                     self.data.append(int(p[i]))
 
                 #self.dataChanged.emit() if (int(p[2]) == 7 or int(p[2]) == 7) else self.next.emit()
                 #self.dataChanged.emit() if (int(p[2]) == 7) else self.next.emit()
-                self.iterator += 1
+                #self.iterator += 1
 
                 #print(self.year, self.week, self.day, self.data)
+                #print(self.iterator)
 
                 self.dataChanged.emit()
             else:
